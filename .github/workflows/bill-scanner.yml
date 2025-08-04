@@ -1,0 +1,65 @@
+name: California Legislative Bill Scanner
+
+on:
+  schedule:
+    # Run every day at 8:00 AM Pacific Time (3:00 PM UTC)
+    - cron: '0 15 * * *'
+  workflow_dispatch: # Allows manual triggering from GitHub UI
+  push:
+    paths:
+      - 'scan_bills.py'
+      - '.github/workflows/bill-scanner.yml'
+
+jobs:
+  scan-bills:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install dependencies
+      run: |
+        pip install requests beautifulsoup4 lxml
+        
+    - name: Run bill scanner
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        python scan_bills.py
+        
+    - name: Check for changes
+      id: verify-changed-files
+      run: |
+        if [ -n "$(git status --porcelain)" ]; then
+          echo "changed=true" >> $GITHUB_OUTPUT
+        else
+          echo "changed=false" >> $GITHUB_OUTPUT
+        fi
+        
+    - name: Commit and push changes
+      if: steps.verify-changed-files.outputs.changed == 'true'
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add bills.json
+        git commit -m "🏛️ Daily legislative scan: $(date '+%Y-%m-%d %H:%M')"
+        git push
+        
+    - name: Create scan summary
+      if: always()
+      run: |
+        echo "## 📊 Legislative Scan Results" >> $GITHUB_STEP_SUMMARY
+        echo "**Date:** $(date)" >> $GITHUB_STEP_SUMMARY
+        if [ -f "scan_results.txt" ]; then
+          cat scan_results.txt >> $GITHUB_STEP_SUMMARY
+        else
+          echo "No scan results file found" >> $GITHUB_STEP_SUMMARY
+        fi
