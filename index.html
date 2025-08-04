@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CA Legislative Bill Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/lucide.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/lucide.min.js"></script>
+</head>
+<body class="bg-gray-50">
+    <div class="max-w-6xl mx-auto p-6 bg-white min-h-screen">
+        <!-- Header -->
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">CA Legislative Bill Tracker</h1>
+            <p class="text-gray-600">Assembly bills passing through Senate Housing/Judiciary → Appropriations</p>
+        </div>
+
+        <!-- Controls -->
+        <div class="mb-6 space-y-4">
+            <div class="flex flex-wrap gap-4 items-center">
+                <div class="flex-1 min-w-64">
+                    <div class="relative">
+                        <i data-lucide="search" class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4"></i>
+                        <input
+                            type="text"
+                            id="searchInput"
+                            placeholder="Search bills, titles, or authors..."
+                            class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                    </div>
+                </div>
+                <button
+                    id="addBillBtn"
+                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                >
+                    <i data-lucide="plus" class="w-4 h-4"></i>
+                    Add Bill
+                </button>
+                
+                <div class="flex gap-2">
+                    <button
+                        id="scanBtn"
+                        class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-purple-400 flex items-center gap-2"
+                        title="Scan for new bills matching criteria"
+                    >
+                        <i data-lucide="refresh-cw" class="w-4 h-4" id="scanIcon"></i>
+                        <span id="scanText">Scan Now</span>
+                    </button>
+                    <button
+                        id="exportCsvBtn"
+                        class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
+                        title="Export to CSV"
+                    >
+                        <i data-lucide="download" class="w-4 h-4"></i>
+                        CSV
+                    </button>
+                    <button
+                        id="exportExcelBtn"
+                        class="px-4 py-2 bg-green-700 text-white rounded-lg hover:bg-green-800 flex items-center gap-2"
+                        title="Export to Excel"
+                    >
+                        <i data-lucide="download" class="w-4 h-4"></i>
+                        Excel
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex gap-4">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="filter" class="w-4 h-4 text-gray-500"></i>
+                    <select id="statusFilter" class="border border-gray-300 rounded px-3 py-1">
+                        <option value="all">All Status</option>
+                        <option value="needs-analysis">Needs Analysis</option>
+                        <option value="in-progress">In Progress</option>
+                        <option value="complete">Complete</option>
+                    </select>
+                </div>
+                
+                <select id="priorityFilter" class="border border-gray-300 rounded px-3 py-1">
+                    <option value="all">All Priority</option>
+                    <option value="high">High Priority</option>
+                    <option value="medium">Medium Priority</option>
+                    <option value="low">Low Priority</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Scan Results -->
+        <div id="scanResults" class="hidden mb-6"></div>
+
+        <!-- Add Bill Form -->
+        <div id="addBillForm" class="hidden mb-6 p-4 bg-gray-50 rounded-lg border">
+            <h3 class="text-lg font-semibold mb-4">Add New Bill</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input type="text" id="newBillNumber" placeholder="Bill Number (e.g., AB-1234)" class="px-3 py-2 border rounded-lg">
+                <input type="text" id="newBillAuthor" placeholder="Author" class="px-3 py-2 border rounded-lg">
+                <input type="text" id="newBillTitle" placeholder="Bill Title" class="px-3 py-2 border rounded-lg md:col-span-2">
+                <textarea id="newBillSummary" placeholder="Bill Summary" class="px-3 py-2 border rounded-lg md:col-span-2 h-20"></textarea>
+                <select id="newBillPriority" class="px-3 py-2 border rounded-lg">
+                    <option value="low">Low Priority</option>
+                    <option value="medium" selected>Medium Priority</option>
+                    <option value="high">High Priority</option>
+                </select>
+            </div>
+            <div class="flex gap-2 mt-4">
+                <button id="saveBillBtn" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">Add Bill</button>
+                <button id="cancelBillBtn" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400">Cancel</button>
+            </div>
+        </div>
+
+        <!-- Bills List -->
+        <div id="billsList" class="space-y-4">
+            <!-- Bills will be rendered here -->
+        </div>
+
+        <!-- Summary Stats -->
+        <div class="mt-8 grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="bg-red-50 p-4 rounded-lg">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="alert-circle" class="w-5 h-5 text-red-600"></i>
+                    <span class="font-medium text-red-800">Needs Analysis</span>
+                </div>
+                <div class="text-2xl font-bold text-red-600 mt-2" id="needsAnalysisCount">0</div>
+            </div>
+            <div class="bg-yellow-50 p-4 rounded-lg">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="clock" class="w-5 h-5 text-yellow-600"></i>
+                    <span class="font-medium text-yellow-800">In Progress</span>
+                </div>
+                <div class="text-2xl font-bold text-yellow-600 mt-2" id="inProgressCount">0</div>
+            </div>
+            <div class="bg-green-50 p-4 rounded-lg">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="check-circle" class="w-5 h-5 text-green-600"></i>
+                    <span class="font-medium text-green-800">Complete</span>
+                </div>
+                <div class="text-2xl font-bold text-green-600 mt-2" id="completeCount">0</div>
+            </div>
+            <div class="bg-blue-50 p-4 rounded-lg">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="file-text" class="w-5 h-5 text-blue-600"></i>
+                    <span class="font-medium text-blue-800">Total Bills</span>
+                </div>
+                <div class="text-2xl font-bold text-blue-600 mt-2" id="totalCount">0</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // Application state
+        let bills = [];
+        let filteredBills = [];
+        let searchTerm = '';
+        let filterStatus = 'all';
+        let filterPriority = 'all';
+        let isScanning = false;
+
+        // Load bills from GitHub data or initialize with sample data
+        async function loadBills() {
+            try {
+                const response = await fetch('bills.json');
+                if (response.ok) {
+                    const data = await response.json();
+                    bills = data.bills || [];
+                } else {
+                    // Initialize with sample data if no bills.json exists
+                    bills = [
+                        {
+                            id: 1,
+                            billNumber: "AB-1234",
+                            title: "Housing Development Streamlining Act",
+                            author: "Garcia",
+                            committees: ["Senate Judiciary", "Senate Housing"],
+                            currentStatus: "Senate Appropriations",
+                            analysisStatus: "needs-analysis",
+                            priority: "high",
+                            dateAdded: "2025-07-20",
+                            notes: "",
+                            summary: "Streamlines housing development approval processes for affordable housing projects."
+                        },
+                        {
+                            id: 2,
+                            billNumber: "AB-5678",
+                            title: "Tenant Protection Enhancement",
+                            author: "Rodriguez",
+                            committees: ["Senate Housing"],
+                            currentStatus: "Senate Appropriations",
+                            analysisStatus: "in-progress",
+                            priority: "medium",
+                            dateAdded: "2025-07-19",
+                            notes: "Need to review impact on existing rent control measures",
+                            summary: "Expands tenant protections and rent stabilization measures statewide."
+                        }
+                    ];
+                }
+            } catch (error) {
+                console.log('No bills.json found, using sample data');
+                bills = [];
+            }
+            
+            filterAndRenderBills();
+        }
+
+        // Filter bills based on criteria
+        function filterBills() {
+            filteredBills = bills.filter(bill => {
+                const matchesSearch = 
+                    bill.billNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    bill.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    bill.author.toLowerCase().includes(searchTerm.toLowerCase());
+                
+                const matchesStatus = filterStatus === 'all' || bill.analysisStatus === filterStatus;
+                const matchesPriority = filterPriority === 'all' || bill.priority === filterPriority;
+                
+                // Only show bills that have passed through Housing OR Judiciary AND are in Appropriations
+                const hasRequiredCommittees = bill.committees.some(c => 
+                    c.includes('Housing') || c.includes('Judiciary')
+                ) && bill.currentStatus === 'Senate Appropriations';
+                
+                return matchesSearch && matchesStatus && matchesPriority && hasRequiredCommittees;
+            });
+        }
+
+        // Render bills list
+        function renderBills() {
+            const billsList = document.getElementById('billsList');
+            
+            if (filteredBills.length === 0) {
+                billsList.innerHTML = `
+                    <div class="text-center py-8 text-gray-500">
+                        No bills match your current filters
+                    </div>
+                `;
+                return;
+            }
+
+            billsList.innerHTML = filteredBills.map(bill => `
+                <div class="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-3 mb-2">
+                                <h3 class="text-xl font-semibold text-blue-600">${bill.billNumber}</h3>
+                                <span class="px-2 py-1 rounded-full text-xs font-medium ${getStatusClasses(bill.analysisStatus)} flex items-center gap-1">
+                                    <i data-lucide="${getStatusIcon(bill.analysisStatus)}" class="w-3 h-3"></i>
+                                    ${bill.analysisStatus.replace('-', ' ').toUpperCase()}
+                                </span>
+                                <span class="text-sm font-medium ${getPriorityColor(bill.priority)}">
+                                    ${bill.priority.toUpperCase()} PRIORITY
+                                </span>
+                            </div>
+                            <h4 class="text-lg font-medium text-gray-900 mb-2">${bill.title}</h4>
+                            <p class="text-gray-600 mb-3">${bill.summary}</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 text-sm">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="user" class="w-4 h-4 text-gray-400"></i>
+                            <span><strong>Author:</strong> ${bill.author}</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="building" class="w-4 h-4 text-gray-400"></i>
+                            <span><strong>Committees:</strong> ${bill.committees.join(', ')}</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="calendar" class="w-4 h-4 text-gray-400"></i>
+                            <span><strong>Added:</strong> ${bill.dateAdded}</span>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Analysis Status:</label>
+                        <select onchange="updateBillStatus(${bill.id}, this.value)" class="border border-gray-300 rounded px-3 py-1 text-sm">
+                            <option value="needs-analysis" ${bill.analysisStatus === 'needs-analysis' ? 'selected' : ''}>Needs Analysis</option>
+                            <option value="in-progress" ${bill.analysisStatus === 'in-progress' ? 'selected' : ''}>In Progress</option>
+                            <option value="complete" ${bill.analysisStatus === 'complete' ? 'selected' : ''}>Complete</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Analysis Notes:</label>
+                        <textarea
+                            onchange="updateBillNotes(${bill.id}, this.value)"
+                            placeholder="Add your analysis notes here..."
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            rows="3"
+                        >${bill.notes}</textarea>
+                    </div>
+                </div>
+            `).join('');
+
+            // Re-initialize Lucide icons for new content
+            lucide.createIcons();
+        }
+
+        // Update summary stats
+        function updateStats() {
+            const needsAnalysis = filteredBills.filter(b => b.analysisStatus === 'needs-analysis').length;
+            const inProgress = filteredBills.filter(b => b.analysisStatus === 'in-progress').length;
+            const complete = filteredBills.filter(b => b.analysisStatus === 'complete').length;
+            
+            document.getElementById('needsAnalysisCount').textContent = needsAnalysis;
+            document.getElementById('inProgressCount').textContent = inProgress;
+            document.getElementById('completeCount').textContent = complete;
+            document.getElementById('totalCount').textContent = filteredBills.length;
+        }
+
+        // Filter and render bills
+        function filterAndRenderBills() {
+            filterBills();
+            renderBills();
+            updateStats();
+        }
+
+        // Helper functions
+        function getStatusClasses(status) {
+            switch(status) {
+                case 'needs-analysis': return 'text-red-600 bg-red-50';
+                case 'in-progress': return 'text-yellow-600 bg-yellow-50';
+                case 'complete': return 'text-green-600 bg-green-50';
+                default: return 'text-gray-600 bg-gray-50';
+            }
+        }
+
+        function getStatusIcon(status) {
+            switch(status) {
+                case 'needs-analysis': return 'alert-circle';
+                case 'in-progress': return 'clock';
+                case 'complete': return 'check-circle';
+                default: return 'file-text';
+            }
+        }
+
+        function getPriorityColor(priority) {
+            switch(priority) {
+                case 'high': return 'text-red-600';
+                case 'medium': return 'text-yellow-600';
+                case 'low': return 'text-green-600';
+                default: return 'text-gray-600';
+            }
+        }
+
+        // Update bill status
+        function updateBillStatus(billId, newStatus) {
+            const bill = bills.find(b => b.id === billId);
+            if (bill) {
+                bill.analysisStatus = newStatus;
+                filterAndRenderBills();
+            }
+        }
+
+        // Update bill notes
+        function updateBillNotes(billId, newNotes) {
+            const bill = bills.find(b => b.id === billId);
+            if (bill) {
+                bill.notes = newNotes;
+            }
+        }
+
+        // Export functions
+        function exportToCSV() {
+            const headers = [
+                'Bill Number', 'Title', 'Author', 'Committees', 'Current Status',
+                'Analysis Status', 'Priority', 'Date Added', 'Notes', 'Summary'
+            ];
+
+            const csvData = filteredBills.map(bill => [
+                bill.billNumber,
+                bill.title,
+                bill.author,
+                bill.committees.join('; '),
+                bill.currentStatus,
+                bill.analysisStatus,
+                bill.priority,
+                bill.dateAdded,
+                bill.notes.replace(/"/g, '""'),
+                bill.summary.replace(/"/g, '""')
+            ]);
+
+            const csvContent = [headers, ...csvData]
+                .map(row => row.map(field => `"${field}"`).join(','))
+                .join('\n');
+
+            downloadFile(csvContent, `ca-bills-${new Date().toISOString().split('T')[0]}.csv`, 'text/csv');
+        }
+
+        function exportToExcel() {
+            const headers = [
+                'Bill Number', 'Title', 'Author', 'Committees', 'Current Status',
+                'Analysis Status', 'Priority', 'Date Added', 'Notes', 'Summary'
+            ];
+
+            let htmlContent = '<table border="1"><thead><tr>';
+            headers.forEach(header => {
+                htmlContent += `<th>${header}</th>`;
+            });
+            htmlContent += '</tr></thead><tbody>';
+
+            filteredBills.forEach(bill => {
+                htmlContent += '<tr>';
+                [
+                    bill.billNumber, bill.title, bill.author, 
+                    bill.committees.join('; '), bill.currentStatus,
+                    bill.analysisStatus, bill.priority, bill.dateAdded,
+                    bill.notes, bill.summary
+                ].forEach(value => {
+                    htmlContent += `<td>${value || ''}</td>`;
+                });
+                htmlContent += '</tr>';
+            });
+            htmlContent += '</tbody></table>';
+
+            downloadFile(htmlContent, `ca-bills-${new Date().toISOString().split('T')[0]}.xls`, 'application/vnd.ms-excel');
+        }
+
+        function downloadFile(content, filename, mimeType) {
+            const blob = new Blob([content], { type: mimeType });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', filename);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Scan function
+        async function runLegislativeScan() {
+            if (isScanning) return;
+            
+            isScanning = true;
+            const scanBtn = document.getElementById('scanBtn');
+            const scanText = document.getElementById('scanText');
+            const scanIcon = document.getElementById('scanIcon');
+            
+            scanBtn.disabled = true;
+            scanText.textContent = 'Scanning...';
+            scanIcon.classList.add('animate-spin');
+            
+            try {
+                // In production, this would trigger the GitHub Action or call an API
+                // For now, simulate the scan
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                showScanResults({
+                    success: true,
+                    newBills: 0,
+                    billsFound: filteredBills.length,
+                    message: `Found ${filteredBills.length} bills matching criteria. GitHub Actions will automatically check for new bills daily.`
+                });
+                
+            } catch (error) {
+                showScanResults({
+                    success: false,
+                    error: error.message,
+                    message: "Manual scan not available. GitHub Actions will handle automatic scanning."
+                });
+            } finally {
+                isScanning = false;
+                scanBtn.disabled = false;
+                scanText.textContent = 'Scan Now';
+                scanIcon.classList.remove('animate-spin');
+            }
+        }
+
+        function showScanResults(results) {
+            const scanResults = document.getElementById('scanResults');
+            const alertClass = results.success 
+                ? results.newBills > 0 
+                    ? 'bg-green-50 border-green-200 text-green-800'
+                    : 'bg-blue-50 border-blue-200 text-blue-800'
+                : 'bg-red-50 border-red-200 text-red-800';
+            
+            const icon = results.success 
+                ? results.newBills > 0 ? 'check-circle' : 'clock'
+                : 'alert-circle';
+            
+            scanResults.className = `p-4 rounded-lg border ${alertClass}`;
+            scanResults.innerHTML = `
+                <div class="flex items-center gap-2 mb-2">
+                    <i data-lucide="${icon}" class="w-5 h-5"></i>
+                    <span class="font-semibold">
+                        ${results.success ? 'Scan Complete' : 'Scan Info'}
+                    </span>
+                </div>
+                <p>${results.message}</p>
+                ${results.success && results.newBills > 0 ? `
+                    <p class="mt-2 text-sm">
+                        ✨ ${results.newBills} new ${results.newBills === 1 ? 'bill' : 'bills'} added and marked as "Needs Analysis"
+                    </p>
+                ` : ''}
+            `;
+            scanResults.classList.remove('hidden');
+            lucide.createIcons();
+            
+            // Hide after 10 seconds
+            setTimeout(() => {
+                scanResults.classList.add('hidden');
+            }, 10000);
+        }
+
+        // Add bill functionality
+        function showAddBillForm() {
+            document.getElementById('addBillForm').classList.remove('hidden');
+        }
+
+        function hideAddBillForm() {
+            document.getElementById('addBillForm').classList.add('hidden');
+            // Clear form
+            document.getElementById('newBillNumber').value = '';
+            document.getElementById('newBillAuthor').value = '';
+            document.getElementById('newBillTitle').value = '';
+            document.getElementById('newBillSummary').value = '';
+            document.getElementById('newBillPriority').value = 'medium';
+        }
+
+        function addNewBill() {
+            const billNumber = document.getElementById('newBillNumber').value.trim();
+            const title = document.getElementById('newBillTitle').value.trim();
+            const author = document.getElementById('newBillAuthor').value.trim();
+            const summary = document.getElementById('newBillSummary').value.trim();
+            const priority = document.getElementById('newBillPriority').value;
+            
+            if (!billNumber || !title) {
+                alert('Bill Number and Title are required');
+                return;
+            }
+            
+            const newBill = {
+                id: Math.max(...bills.map(b => b.id), 0) + 1,
+                billNumber,
+                title,
+                author,
+                committees: ['Senate Housing'], // Default
+                currentStatus: 'Senate Appropriations',
+                analysisStatus: 'needs-analysis',
+                priority,
+                dateAdded: new Date().toISOString().split('T')[0],
+                notes: '',
+                summary
+            };
+            
+            bills.push(newBill);
+            hideAddBillForm();
+            filterAndRenderBills();
+        }
+
+        // Event listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            loadBills();
+            
+            // Search
+            document.getElementById('searchInput').addEventListener('input', (e) => {
+                searchTerm = e.target.value;
+                filterAndRenderBills();
+            });
+            
+            // Filters
+            document.getElementById('statusFilter').addEventListener('change', (e) => {
+                filterStatus = e.target.value;
+                filterAndRenderBills();
+            });
+            
+            document.getElementById('priorityFilter').addEventListener('change', (e) => {
+                filterPriority = e.target.value;
+                filterAndRenderBills();
+            });
+            
+            // Buttons
+            document.getElementById('addBillBtn').addEventListener('click', showAddBillForm);
+            document.getElementById('saveBillBtn').addEventListener('click', addNewBill);
+            document.getElementById('cancelBillBtn').addEventListener('click', hideAddBillForm);
+            document.getElementById('scanBtn').addEventListener('click', runLegislativeScan);
+            document.getElementById('exportCsvBtn').addEventListener('click', exportToCSV);
+            document.getElementById('exportExcelBtn').addEventListener('click', exportToExcel);
+        });
+    </script>
+</body>
+</html>
