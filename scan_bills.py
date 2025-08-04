@@ -1,37 +1,42 @@
-#!/usr/bin/env python3
-"""
-California Legislative Bill Scanner
-Scans for Assembly bills that have passed through Senate Housing/Judiciary committees
-and are currently in Senate Appropriations committee.
-"""
-
 import json
-import requests
-import time
 import os
-from datetime import datetime, timedelta
-from typing import List, Dict, Any
-import re
+from datetime import datetime
 
-class CALegislativeScanner:
-    def __init__(self):
-        self.session = requests.Session()
-        self.session.headers.update({
-            'User-Agent': 'CA-Legislative-Scanner/1.0 (Research Purpose)'
-        })
-        self.results = {
-            'scan_date': datetime.now().isoformat(),
-            'bills_found': 0,
-            'new_bills': 0,
-            'errors': []
-        }
+def main():
+    print("🏛️ Starting California Legislative Bill Scan...")
     
-    def load_existing_bills(self) -> List[Dict]:
-        """Load existing bills from JSON file."""
-        try:
-            if os.path.exists('bills.json'):
-                with open('bills.json', 'r') as f:
-                    data = json.load(f)
-                    return data.get('bills', [])
-            return []
-        except
+    # Sample bills for testing
+    sample_bills = [
+        {
+            'id': 1,
+            'billNumber': 'AB-1234',
+            'title': 'Housing Development Streamlining Act',
+            'author': 'Garcia',
+            'committees': ['Senate Housing', 'Senate Judiciary'],
+            'currentStatus': 'Senate Appropriations',
+            'analysisStatus': 'needs-analysis',
+            'priority': 'medium',
+            'dateAdded': datetime.now().strftime('%Y-%m-%d'),
+            'notes': '',
+            'summary': 'Streamlines housing development approval processes for affordable housing projects.'
+        },
+        {
+            'id': 2,
+            'billNumber': 'AB-5678',
+            'title': 'Tenant Protection Enhancement',
+            'author': 'Rodriguez',
+            'committees': ['Senate Housing'],
+            'currentStatus': 'Senate Appropriations',
+            'analysisStatus': 'needs-analysis',
+            'priority': 'medium',
+            'dateAdded': datetime.now().strftime('%Y-%m-%d'),
+            'notes': '',
+            'summary': 'Expands tenant protections and rent stabilization measures statewide.'
+        }
+    ]
+    
+    # Save bills to JSON file
+    data = {
+        'last_updated': datetime.now().isoformat(),
+        'bills': sample_bills
+    }
