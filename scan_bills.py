@@ -300,5 +300,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-├── bills.json                 # Bill data (will be auto-created)
-└── README.md
